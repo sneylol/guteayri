@@ -108,6 +108,96 @@ async function guteayriCall(settings, { system, parts, json = true, maxTokens = 
   throw lastErr || new GuteAyriError("The model did not return an answer.", "empty");
 }
 
+/* ---------- Backup keys, fallback providers and the request log ---------- */
+
+/* Errors another key for the same provider can get past: a rejected or used-up key, or one that is rate-limited. */
+const KEY_ERRORS = new Set(["auth", "limit", "rate", "workspace"]);
+
+/* Each provider and key to try, in order: the chosen provider's keys, then each fallback provider's.
+   A provider without keys (Ollama, Sign in with ChatGPT, a keyless endpoint) gets a single attempt. */
+function guteayriAttempts(settings) {
+  const ids = [settings.provider, ...(settings.fallbacks || [])].filter((id, i, all) => GUTEAYRI_PROVIDERS[id] && all.indexOf(id) === i);
+  const out = [];
+  for (const id of ids) {
+    const cfg = (settings.providers && settings.providers[id]) || {};
+    const keys = [cfg.apiKey, ...(cfg.backupKeys || [])].map((k) => String(k || "").trim()).filter(Boolean);
+    if (!keys.length) out.push({ id, key: "", keyNo: 0, fallback: id !== settings.provider });
+    keys.forEach((key, i) => out.push({ id, key, keyNo: i + 1, fallback: id !== settings.provider }));
+  }
+  return out;
+}
+
+/* The same settings, pointed at one provider and key. */
+function settingsFor(settings, attempt) {
+  const cfg = Object.assign({}, settings.providers[attempt.id], { apiKey: attempt.key });
+  return Object.assign({}, settings, { provider: attempt.id, providers: Object.assign({}, settings.providers, { [attempt.id]: cfg }) });
+}
+
+const keyHint = (key) => (key && key.length > 8 ? `…${key.slice(-4)}` : "");
+
+/* Runs `run(settings)` against each provider and key in turn until one succeeds, logging every attempt.
+   `what` names the request in the log ("page", "question", "test"). */
+async function guteayriWithFallback(settings, what, run) {
+  const attempts = guteayriAttempts(settings);
+  let first = null, skip = null, tried = 0;
+  for (const a of attempts) {
+    if (a.id === skip) continue;
+    const s = settingsFor(settings, a);
+    const def = GUTEAYRI_PROVIDERS[a.id];
+    const model = (s.providers[a.id].model || def.defaultModel || "").trim();
+    const started = Date.now();
+    tried++;
+    try {
+      const result = await run(s);
+      guteayriLog({ what, provider: a.id, keyNo: a.keyNo, keyHint: keyHint(a.key), model: result.model || model, ok: true, ms: Date.now() - started, usage: result.usage });
+      // keyNo 1 is the main key; the backups after it are numbered from 1 as in Settings.
+      const via = a.fallback ? `fallback: ${def.name}` : a.keyNo > 1 ? `backup key ${a.keyNo - 1}` : "";
+      return Object.assign(result, { via, provider: def.name, model: via ? `${result.model} (${via})` : result.model });
+    } catch (err) {
+      guteayriLog({ what, provider: a.id, keyNo: a.keyNo, keyHint: keyHint(a.key), model, ok: false, ms: Date.now() - started, code: err.code, status: err.status, error: err.message, usage: err.usage });
+      if (!first) first = err;
+      // Another key only helps when this key was the problem; otherwise go on to the next provider.
+      if (!KEY_ERRORS.has(err.code) || !a.key) skip = a.id;
+    }
+  }
+  if (first && tried > 1) first.message += ` GuteAyri also tried ${tried - 1} more ${tried - 1 === 1 ? "key or provider" : "keys and providers"}; see Settings → Log for each one.`;
+  throw first || new GuteAyriError("No provider is set up. Choose one in Settings.", "config");
+}
+
+/* The request log: the last 200 attempts, newest first, kept in this browser only. Keys are never stored, only their last 4 characters. */
+const LOG_KEY = "requestLog";
+const LOG_MAX = 200;
+let logWrite = Promise.resolve();
+function guteayriLog(entry) {
+  const row = Object.assign({ t: Date.now() }, entry);
+  if (row.error) row.error = String(row.error).slice(0, 400);
+  if (row.usage) row.usage = { input: row.usage.input || 0, output: row.usage.output || 0 };
+  // Writes go one after another, so parallel requests (several frames) don't overwrite each other's rows.
+  logWrite = logWrite.then(async () => {
+    const stored = (await browser.storage.local.get(LOG_KEY))[LOG_KEY] || [];
+    await browser.storage.local.set({ [LOG_KEY]: [row, ...stored].slice(0, LOG_MAX) });
+  }).catch(() => {});
+  return logWrite;
+}
+
+/* Tries every key of one provider (no fallbacks), for Test connection: which keys work and which don't. */
+async function guteayriTestKeys(settings, request) {
+  const attempts = guteayriAttempts(Object.assign({}, settings, { fallbacks: [] }));
+  const results = [];
+  for (const a of attempts) {
+    const started = Date.now();
+    try {
+      const r = await guteayriCall(settingsFor(settings, a), request);
+      guteayriLog({ what: "test", provider: a.id, keyNo: a.keyNo, keyHint: keyHint(a.key), model: r.model, ok: true, ms: Date.now() - started, usage: r.usage });
+      results.push({ keyNo: a.keyNo, ok: true, model: r.model });
+    } catch (err) {
+      guteayriLog({ what: "test", provider: a.id, keyNo: a.keyNo, keyHint: keyHint(a.key), model: settings.providers[a.id].model, ok: false, ms: Date.now() - started, code: err.code, status: err.status, error: err.message });
+      results.push({ keyNo: a.keyNo, ok: false, error: err.message, code: err.code });
+    }
+  }
+  return results;
+}
+
 function withUsage(err, usage) {
   err.usage = usage;
   return err;

@@ -1,6 +1,6 @@
 # GuteAyri privacy policy
 
-Last updated: 23 October 2026
+Last updated: 23 October 2026 (request log added)
 
 GuteAyri is a browser extension that reads the questions on a web page and fills in answers using an AI provider you choose. This policy explains what data it handles and where that data goes.
 
@@ -40,9 +40,10 @@ GuteAyri doesn't sell data, share it with anyone else, or use it for advertising
 GuteAyri stores the following in your browser's local extension storage, on your device only:
 
 - **Settings:** your chosen provider, model, reasoning level, instructions, Knowledge notes and other options.
-- **Credentials:** API keys you entered, and ChatGPT sign-in tokens if you used Sign in with ChatGPT.
+- **Credentials:** API keys you entered (including backup keys), and ChatGPT sign-in tokens if you used Sign in with ChatGPT.
+- **Request log:** a log of the last 200 requests, shown under Settings → Log. Each entry has the time, the provider, the model, how long the request took, the token counts, and the error message if it failed. Keys appear only as their last four characters, and page content isn't stored. "Clear the log" deletes it.
 
-It doesn't keep a history of the pages you ran it on. Answers stay in the open tab only until you close or reload it.
+Apart from the request log, it doesn't keep a history of the pages you ran it on. Answers stay in the open tab only until you close or reload it.
 
 To delete everything, remove the extension. Signing out of ChatGPT in Settings also asks OpenAI to end that sign-in.
 

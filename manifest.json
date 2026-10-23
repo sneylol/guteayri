@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "GuteAyri",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Reads the questions on any page, including images, and fills in the answers with the AI model you choose.",
   "icons": {
     "48": "icons/icon.svg",

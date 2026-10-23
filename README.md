@@ -8,8 +8,8 @@ A browser extension for Firefox, Zen, Chrome and Safari that reads the questions
 
 | Package | For | Folder to load | Zip |
 |---|---|---|---|
-| Firefox (Manifest V2) | Firefox, Zen | `dist/firefox` (or this folder's `manifest.json`) | `dist/guteayri-firefox-1.0.1.zip` |
-| Chrome (Manifest V3) | Chrome, Edge, Brave and other Chromium browsers | `dist/chrome` | `dist/guteayri-chrome-1.0.1.zip` |
+| Firefox (Manifest V2) | Firefox, Zen | `dist/firefox` (or this folder's `manifest.json`) | `dist/guteayri-firefox-1.0.2.zip` |
+| Chrome (Manifest V3) | Chrome, Edge, Brave and other Chromium browsers | `dist/chrome` | `dist/guteayri-chrome-1.0.2.zip` |
 | Safari (Manifest V3) | Safari on macOS | `dist/GuteAyri.app` (built when Xcode is installed) | — |
 
 ## Install
@@ -78,6 +78,8 @@ A wrong answer can come from the model as well as from GuteAyri, so look at what
 ## Providers
 
 OpenAI, ChatGPT (sign in with your plan), Anthropic, Google Gemini, OpenRouter, xAI, Groq, Mistral, DeepSeek, Ollama (local), CLIProxyAPI (local) and any OpenAI-compatible endpoint. **Load models** fetches the live model list for your key. The reasoning level is sent in each provider's own format; if a model rejects a setting, GuteAyri retries without it.
+
+**Backup keys and fallbacks:** each provider can have backup keys, tried in order when a key is rejected, out of credit or rate-limited. Under "If … fails" in Settings, list other providers to try next, in order, each with its own model and keys. Any other failure (a provider that's down, an unreadable answer) moves on to the next provider. The answer panel shows when a backup key or fallback answered. **Settings → Log** lists every request, newest first: which provider and key answered, and which failed and why. It keeps the last 200 in this browser, with keys shortened to their last four characters.
 
 **Using a subscription instead of an API key:**
 - **ChatGPT**: pick ChatGPT and press **Continue with ChatGPT**. This is OpenAI's official [Sign in with ChatGPT](https://developers.openai.com/siwc/token-sharing-open-source) for open-source and local apps. Requests count against your ChatGPT plan (Plus shares its five-hour limit with Codex and other apps; Pro has none). You can see and cap GuteAyri's share at [ChatGPT → Settings → Usage](https://chatgpt.com/settings/usage). The sign-in lives in the extension's own storage, apart from the settings, and GuteAyri renews it on its own.

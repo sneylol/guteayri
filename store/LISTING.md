@@ -1,8 +1,8 @@
 # GuteAyri store listing
 
 Everything the Chrome Web Store, Firefox Add-ons (AMO) and Edge Add-ons ask for, ready to paste. The packages come from `node tools/build.mjs`:
-- **Chrome and Edge:** `dist/guteayri-chrome-1.0.1.zip`
-- **Firefox:** `dist/guteayri-firefox-1.0.1.zip`
+- **Chrome and Edge:** `dist/guteayri-chrome-1.0.2.zip`
+- **Firefox:** `dist/guteayri-firefox-1.0.2.zip`
 
 Images are in `store/images/`. The privacy policy is `PRIVACY.md`, published at https://sneylol.github.io/guteayri/PRIVACY.html.
 
@@ -31,6 +31,7 @@ YOU STAY IN CONTROL
 • It never presses submit, next, finish or navigation buttons, and leaves password, search and payment fields alone.
 
 YOUR PROVIDER, YOUR KEY
+Add backup keys and fallback providers: if a key is rejected or out of credit, or a provider is down, GuteAyri moves on to the next one. A log in Settings shows which request went where and why one failed.
 Use OpenAI, Anthropic (Claude), Google Gemini, OpenRouter, xAI, Groq, Mistral, DeepSeek, a local model through Ollama, or any OpenAI-compatible endpoint. You can also use a ChatGPT plan through Sign in with ChatGPT, or other subscriptions through a local CLIProxyAPI. Your keys and settings stay in your browser. GuteAyri has no servers, no accounts and no analytics. Page content goes only to the provider you chose.
 
 USE IT FAIRLY

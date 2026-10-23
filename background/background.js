@@ -113,9 +113,12 @@ async function solvePage(page) {
   // Room for the answer plus the model's thinking. A cut-off answer is billed and then retried, so
   // higher reasoning levels start with more room; only the tokens actually written are billed.
   const maxTokens = { high: 32000, max: 64000 }[s.reasoning] || 16000;
-  const res = await guteayriCall(s, { system: solveSystem(s), parts, json: true, maxTokens });
-  const answers = normalizeAnswers(guteayriExtractJson(res.text));
-  return { answers, model: res.model, provider: res.provider, imagesDropped: res.imagesDropped, usage: res.usage };
+  // Unreadable JSON counts as a failed attempt too, so the next key or provider gets a turn.
+  const res = await guteayriWithFallback(s, "page", async (attempt) => {
+    const r = await guteayriCall(attempt, { system: solveSystem(s), parts, json: true, maxTokens });
+    return Object.assign(r, { answers: normalizeAnswers(guteayriExtractJson(r.text)) });
+  });
+  return { answers: res.answers, model: res.model, provider: res.provider, via: res.via, imagesDropped: res.imagesDropped, usage: res.usage };
 }
 
 async function askFree({ question, images }) {
@@ -123,7 +126,7 @@ async function askFree({ question, images }) {
   const system = `${String(s.systemPrompt || GUTEAYRI_DEFAULT_PROMPT).trim()}\n\nAnswer the question directly. Lead with the answer, then give at most three short sentences of reasoning. Plain text only.${knowledgeBlock(s)}`;
   const parts = imageParts(images);
   parts.push({ type: "text", text: question });
-  const res = await guteayriCall(s, { system, parts, json: false, maxTokens: 8000 });
+  const res = await guteayriWithFallback(s, "question", (attempt) => guteayriCall(attempt, { system, parts, json: false, maxTokens: 8000 }));
   return { text: res.text.trim(), model: res.model, usage: res.usage };
 }
 
@@ -295,10 +298,10 @@ browser.runtime.onMessage.addListener((msg, sender) => {
         })
         .then((models) => ({ ok: true, models }), (err) => ({ ok: false, error: errorText(err) }));
 
-    case "testConnection":
+    case "testConnection": // every key of the chosen provider, one by one
       return guteayriLoadSettings()
-        .then((s) => guteayriCall(s, { system: "Reply with the single word: ready", parts: [{ type: "text", text: "Are you there? Reply in JSON: {\"status\":\"ready\"}" }], json: true, maxTokens: 2000 }))
-        .then((r) => ({ ok: true, model: r.model }), (err) => ({ ok: false, error: errorText(err) }));
+        .then((s) => guteayriTestKeys(s, { system: "Reply with the single word: ready", parts: [{ type: "text", text: "Are you there? Reply in JSON: {\"status\":\"ready\"}" }], json: true, maxTokens: 2000 }))
+        .then((results) => ({ ok: results.some((r) => r.ok), results }), (err) => ({ ok: false, error: errorText(err), results: [] }));
 
     case "openOptions":
       return browser.runtime.openOptionsPage();

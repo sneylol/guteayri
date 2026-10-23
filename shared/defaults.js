@@ -155,7 +155,8 @@ Write free-text answers in the same language as the question. Match the length t
 
 var GUTEAYRI_DEFAULTS = {
   provider: "openai",
-  providers: {},            // { [providerId]: { apiKey, model, baseUrl, models: [] } }
+  providers: {},            // { [providerId]: { apiKey, backupKeys: [], model, baseUrl, models: [] } }
+  fallbacks: [],            // provider ids to try, in order, when the chosen provider fails
   reasoning: "medium",
   systemPrompt: GUTEAYRI_DEFAULT_PROMPT,
   contexts: [],             // [{ id, title, body, enabled }]
@@ -175,8 +176,10 @@ async function guteayriLoadSettings() {
   const s = Object.assign({}, GUTEAYRI_DEFAULTS, stored.settings || {});
   s.providers = Object.assign({}, s.providers || {});
   for (const id of Object.keys(GUTEAYRI_PROVIDERS)) {
-    s.providers[id] = Object.assign({ apiKey: "", model: "", baseUrl: "", workspaceId: "", models: [] }, s.providers[id] || {});
+    s.providers[id] = Object.assign({ apiKey: "", backupKeys: [], model: "", baseUrl: "", workspaceId: "", models: [] }, s.providers[id] || {});
+    if (!Array.isArray(s.providers[id].backupKeys)) s.providers[id].backupKeys = [];
   }
+  s.fallbacks = (Array.isArray(s.fallbacks) ? s.fallbacks : []).filter((id) => GUTEAYRI_PROVIDERS[id]);
   if (!Array.isArray(s.contexts)) s.contexts = [];
   return s;
 }

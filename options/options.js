@@ -15,6 +15,7 @@ async function save(patch) {
   savedTimer = setTimeout(() => el.classList.remove("show"), 1100);
   updateHint();
   renderProviders();
+  renderFallbacks();
 }
 
 function debounce(fn, ms) {
@@ -62,6 +63,7 @@ function renderSetup() {
     ["Reasoning", level ? level.label : settings.reasoning, true],
     ["Auto mode", settings.autoMode ? "On" : "Off", settings.autoMode],
     ["Topics", topicsOn ? `${topicsOn} sent with every page` : "None", topicsOn > 0],
+    ["Fallbacks", fallbackIds().map((id) => GUTEAYRI_PROVIDERS[id].name).join(", ") || "None", fallbackIds().length > 0],
   ];
   $("setup").replaceChildren(...rows.flatMap(([k, v, on]) => [el("dt", { textContent: k }), el("dd", { textContent: v, title: v, className: on ? "" : "off" })]));
 }
@@ -87,12 +89,19 @@ function updateHint() {
 
 /* ---------- Provider ---------- */
 
+/* Whether a provider has what it needs to send a request: a key, a sign-in, or an address. */
+function providerReady(id) {
+  const def = GUTEAYRI_PROVIDERS[id];
+  const cfg = settings.providers[id];
+  return def.account ? chatgpt.signedIn : def.needsKey ? !!cfg.apiKey : id !== "custom" || !!cfg.baseUrl;
+}
+
 function renderProviders() {
   const wrap = $("providers");
   wrap.replaceChildren(
     ...Object.entries(GUTEAYRI_PROVIDERS).map(([id, def]) => {
       const cfg = settings.providers[id];
-      const ready = def.account ? chatgpt.signedIn : def.needsKey ? !!cfg.apiKey : id !== "custom" || !!cfg.baseUrl;
+      const ready = providerReady(id);
       const label = el("label", { className: "prov" });
       const input = el("input", { type: "radio", name: "provider", value: id, className: "sr", checked: settings.provider === id });
       input.addEventListener("change", async () => {
@@ -146,7 +155,162 @@ function renderDetail() {
 
   $("test-result").textContent = "";
   $("test-result").className = "result";
+
+  $("backup-row").hidden = !!def.account;
+  renderBackupKeys();
+  renderFallbacks();
 }
+
+/* ---------- Backup keys ---------- */
+
+function renderBackupKeys() {
+  const id = settings.provider;
+  const keys = settings.providers[id].backupKeys || [];
+  $("backup-keys").replaceChildren(...keys.map((key, i) => {
+    const input = el("input", { type: "password", value: key, spellcheck: false, autocomplete: "off", placeholder: `Backup key ${i + 1}` });
+    input.setAttribute("aria-label", `Backup key ${i + 1}`);
+    input.addEventListener("input", () => saveBackupKeys(id));
+    const show = el("button", { type: "button", className: "btn ghost small", textContent: "Show" });
+    show.addEventListener("click", () => {
+      input.type = input.type === "password" ? "text" : "password";
+      show.textContent = input.type === "password" ? "Show" : "Hide";
+    });
+    const remove = el("button", { type: "button", className: "btn ghost small", textContent: "Remove" });
+    remove.addEventListener("click", async () => {
+      const providers = settings.providers;
+      providers[id].backupKeys = backupKeysInForm().filter((_, j) => j !== i);
+      await save({ providers });
+      renderBackupKeys();
+    });
+    return el("li", { className: "field" }, input, show, remove);
+  }));
+  $("add-key").textContent = keys.length ? "Add another backup key" : "Add a backup key";
+}
+
+function backupKeysInForm() {
+  return [...$("backup-keys").querySelectorAll("input")].map((i) => i.value.trim());
+}
+
+// The provider is captured when typing, as with the main key.
+const saveBackupKeys = debounce((provider) => {
+  if (provider !== settings.provider) return;
+  const providers = settings.providers;
+  providers[provider].backupKeys = backupKeysInForm();
+  save({ providers });
+}, 350);
+
+$("add-key").addEventListener("click", async () => {
+  const providers = settings.providers;
+  providers[settings.provider].backupKeys = [...backupKeysInForm(), ""];
+  await save({ providers });
+  renderBackupKeys();
+  const inputs = $("backup-keys").querySelectorAll("input");
+  if (inputs.length) inputs[inputs.length - 1].focus();
+});
+
+/* ---------- Fallback providers ---------- */
+
+/* The fallbacks in order, leaving out the chosen provider itself. */
+function fallbackIds() {
+  return (settings.fallbacks || []).filter((id) => id !== settings.provider && GUTEAYRI_PROVIDERS[id]);
+}
+
+function renderFallbacks() {
+  const main = GUTEAYRI_PROVIDERS[settings.provider];
+  $("fallback-main").textContent = main.name;
+  const ids = fallbackIds();
+  const move = async (from, to) => {
+    const list = fallbackIds();
+    const [id] = list.splice(from, 1);
+    list.splice(to, 0, id);
+    await save({ fallbacks: list });
+  };
+  $("fallbacks").replaceChildren(...(ids.length ? ids.map((id, i) => {
+    const def = GUTEAYRI_PROVIDERS[id];
+    const cfg = settings.providers[id];
+    const ready = providerReady(id);
+    const keys = [cfg.apiKey, ...(cfg.backupKeys || [])].filter((k) => String(k || "").trim()).length;
+    const what = !ready ? (def.account ? "Not signed in: skipped" : "Not set up: skipped")
+      : [cfg.model || def.defaultModel || "no model chosen", keys > 1 ? `${keys} keys` : ""].filter(Boolean).join(" · ");
+    const up = el("button", { type: "button", className: "btn ghost small", textContent: "Up", disabled: i === 0 });
+    up.addEventListener("click", () => move(i, i - 1));
+    const down = el("button", { type: "button", className: "btn ghost small", textContent: "Down", disabled: i === ids.length - 1 });
+    down.addEventListener("click", () => move(i, i + 1));
+    const remove = el("button", { type: "button", className: "btn ghost small", textContent: "Remove" });
+    remove.addEventListener("click", () => save({ fallbacks: fallbackIds().filter((x) => x !== id) }));
+    return el("li", { className: "fb" + (ready ? "" : " off") },
+      el("span", { className: "fb-n", textContent: String(i + 1) }),
+      el("span", { className: "fb-name" }, el("strong", { textContent: def.name }), el("small", { textContent: what })),
+      el("span", { className: "fb-tools" }, up, down, remove));
+  }) : [el("li", { className: "fb-empty", textContent: "No fallbacks yet. If the provider fails, the run stops with its error." })]));
+
+  const others = Object.keys(GUTEAYRI_PROVIDERS).filter((id) => id !== settings.provider && !ids.includes(id));
+  $("fallback-add").replaceChildren(
+    el("option", { value: "", textContent: others.length ? "Add a fallback provider…" : "Every provider is already a fallback" }),
+    ...others.map((id) => el("option", { value: id, textContent: GUTEAYRI_PROVIDERS[id].name + (providerReady(id) ? "" : " (not set up yet)") }))
+  );
+  $("fallback-add").disabled = !others.length;
+}
+
+$("fallback-add").addEventListener("change", async (e) => {
+  const id = e.target.value;
+  if (!id) return;
+  await save({ fallbacks: [...fallbackIds(), id] });
+});
+
+/* ---------- Log ---------- */
+
+const LOG_WHAT = { page: "Page", question: "Question", test: "Test" };
+const LOG_REASON = { auth: "Key rejected", limit: "Out of credit", rate: "Rate-limited", workspace: "Workspace", network: "Unreachable", timeout: "Timed out",
+  model: "Unknown model", "no-key": "No key", config: "Not set up", refusal: "Declined", "bad-json": "Unreadable answer", empty: "Empty answer", truncated: "Cut off", incomplete: "Cut off" };
+
+function keyLabel(row) {
+  if (!row.keyNo) return "";
+  const n = row.keyNo === 1 ? "main key" : `backup key ${row.keyNo - 1}`;
+  return row.keyHint ? `${n} ${row.keyHint}` : n;
+}
+
+async function renderLog() {
+  const rows = (await browser.storage.local.get("requestLog")).requestLog || [];
+  const shown = $("log-failed").checked ? rows.filter((r) => !r.ok) : rows;
+  const failed = rows.filter((r) => !r.ok).length;
+  $("log-count").textContent = rows.length ? `${rows.length} requests, ${failed} failed` : "";
+  const today = new Date().toDateString();
+  const when = (t) => {
+    const d = new Date(t);
+    const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    return d.toDateString() === today ? time : `${d.toLocaleDateString([], { day: "numeric", month: "short" })} ${time}`;
+  };
+  const tbody = $("log").tBodies[0];
+  if (!shown.length) {
+    tbody.replaceChildren(el("tr", { className: "empty" }, el("td", { colSpan: 5, textContent: rows.length ? "No failed requests." : "Nothing yet. Requests appear here as GuteAyri sends them." })));
+    return;
+  }
+  tbody.replaceChildren(...shown.slice(0, 200).map((r) => {
+    const def = GUTEAYRI_PROVIDERS[r.provider];
+    const secs = r.ms != null ? `${(r.ms / 1000).toFixed(1)} s` : "";
+    const result = r.ok
+      ? el("td", { className: "ok", textContent: ["OK", secs, r.usage ? `${r.usage.input.toLocaleString()} in · ${r.usage.output.toLocaleString()} out` : ""].filter(Boolean).join(" · ") })
+      : el("td", { className: "bad", title: r.error || "" },
+          el("strong", { textContent: (LOG_REASON[r.code] || "Failed") + (r.status ? ` (${r.status})` : "") }),
+          el("span", { textContent: r.error ? ` ${r.error}` : "" }));
+    return el("tr", { className: r.ok ? "" : "failed" },
+      el("td", { className: "t", textContent: when(r.t) }),
+      el("td", { textContent: LOG_WHAT[r.what] || r.what || "" }),
+      el("td", {}, el("span", { textContent: def ? def.name : r.provider }), el("small", { textContent: keyLabel(r) })),
+      el("td", { className: "m", textContent: r.model || "" }),
+      result);
+  }));
+}
+
+$("log-failed").addEventListener("change", renderLog);
+$("clear-log").addEventListener("click", async () => {
+  await browser.storage.local.remove("requestLog");
+  renderLog();
+});
+browser.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes.requestLog) renderLog();
+});
 
 /* ---------- ChatGPT sign-in ---------- */
 
@@ -271,6 +435,7 @@ $("test").addEventListener("click", async () => {
   const providers = settings.providers;
   Object.assign(providers[settings.provider], {
     apiKey: $("apiKey").value.trim(),
+    backupKeys: GUTEAYRI_PROVIDERS[settings.provider].account ? providers[settings.provider].backupKeys : backupKeysInForm(),
     model: $("model").value.trim(),
     baseUrl: $("baseUrl").value.trim(),
     workspaceId: $("workspaceId").value.trim(),
@@ -278,7 +443,17 @@ $("test").addEventListener("click", async () => {
   await save({ providers });
   const res = await browser.runtime.sendMessage({ type: "testConnection" });
   btn.disabled = false;
-  showTest(res.ok ? `Connected. ${res.model} is answering.` : res.error, res.ok);
+  const results = res.results || [];
+  if (results.length <= 1) {
+    const r = results[0];
+    showTest(r && r.ok ? `Connected. ${r.model} is answering.` : (r && r.error) || res.error || "No answer.", !!(r && r.ok));
+    return;
+  }
+  // Several keys: one short verdict per key; the log has the full errors.
+  const name = (n) => (n === 1 ? "Main key" : `Backup key ${n - 1}`);
+  const VERDICT = { auth: "rejected", limit: "out of credit", rate: "rate-limited", workspace: "needs a workspace", network: "unreachable", timeout: "timed out", model: "doesn't know this model" };
+  const verdicts = results.map((r) => `${name(r.keyNo)} ${r.ok ? "works" : VERDICT[r.code] || "failed"}`);
+  showTest(`${verdicts.join(" · ")}.${results.some((r) => !r.ok) ? " Details in the log below." : ""}`, res.ok);
 });
 
 /* ---------- Reasoning ---------- */
@@ -643,6 +818,7 @@ function renderBehavior() {
   renderPrompt();
   renderTopics();
   renderBehavior();
+  renderLog();
   await renderKeys();
   updateHint();
 })();

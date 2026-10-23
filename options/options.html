@@ -43,6 +43,14 @@
           </div>
           <a class="aside" id="key-link" target="_blank" rel="noreferrer">Get a key</a>
         </div>
+        <div class="row top" id="backup-row">
+          <span class="cap">Backup keys</span>
+          <div class="field stack">
+            <ol class="backup-keys" id="backup-keys"></ol>
+            <button class="btn ghost small" id="add-key" type="button">Add a backup key</button>
+          </div>
+          <span class="aside">Tried in order when a key is rejected, out of credit or rate-limited</span>
+        </div>
         <div class="row">
           <label class="cap" for="model">Model</label>
           <div class="field">
@@ -72,6 +80,15 @@
             <button class="btn solid" id="test" type="button">Test connection</button>
             <span class="result" id="test-result" role="status"></span>
           </div>
+        </div>
+      </div>
+
+      <div class="fallback">
+        <h3>If <span id="fallback-main">this provider</span> fails</h3>
+        <p class="sub">GuteAyri tries these providers next, in order, each with its own model and keys. A provider that isn't set up is skipped.</p>
+        <ol class="fallbacks" id="fallbacks"></ol>
+        <div class="under">
+          <select id="fallback-add" aria-label="Add a fallback provider"></select>
         </div>
       </div>
     </section>
@@ -133,6 +150,22 @@
       <div class="numbers">
         <label class="num"><span class="cap">Images per page</span><input type="number" id="maxImages" min="0" max="40"></label>
         <label class="num"><span class="cap">Page text limit</span><input type="number" id="maxChars" min="5000" max="400000" step="5000"><span class="aside">characters</span></label>
+      </div>
+    </section>
+
+    <section class="part" id="part-log">
+      <h2>Log</h2>
+      <p class="sub">Every request GuteAyri sends, newest first: which provider and key answered, and which failed and why. Keys show only their last four characters. The log stays in this browser and keeps the last 200 requests.</p>
+      <div class="under log-tools">
+        <label class="check"><input type="checkbox" id="log-failed"> Only failures</label>
+        <button class="btn ghost small" id="clear-log" type="button">Clear the log</button>
+        <span class="aside" id="log-count"></span>
+      </div>
+      <div class="log-wrap">
+        <table class="log" id="log">
+          <thead><tr><th>Time</th><th>Request</th><th>Provider · key</th><th>Model</th><th>Result</th></tr></thead>
+          <tbody></tbody>
+        </table>
       </div>
     </section>
 
