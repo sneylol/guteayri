@@ -1,0 +1,4 @@
+.DS_Store
+dist/
+.playwright-mcp/
+moodle_test_result.png

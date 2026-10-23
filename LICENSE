@@ -1,0 +1,10 @@
+Copyright (c) 2026 sneylol (raczpepo@gmail.com). All rights reserved.
+
+The source is published so it can be read and reviewed. No permission is granted to copy, modify,
+distribute or publish it, in whole or in part, except as allowed by law.
+
+Third-party parts keep their own licenses:
+- vendor/browser-polyfill.min.js: Mozilla's webextension-polyfill, Mozilla Public License 2.0.
+- fonts/: Barlow and Barlow Condensed by Jeremy Tribby, SIL Open Font License 1.1.
+- test/moodle/quiz.json.gz: a recorded Moodle 5.1 page with Moodle's JavaScript and YUI, under their own
+  licenses (Moodle: GNU GPL v3 or later; YUI: BSD).

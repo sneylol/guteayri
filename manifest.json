@@ -1,0 +1,108 @@
+{
+  "manifest_version": 2,
+  "name": "GuteAyri",
+  "version": "1.0.0",
+  "description": "Reads the questions on any page, including images, and fills in the answers with the AI model you choose.",
+  "icons": {
+    "48": "icons/icon.svg",
+    "96": "icons/icon.svg",
+    "128": "icons/icon.svg"
+  },
+  "permissions": [
+    "storage",
+    "tabs",
+    "activeTab",
+    "contextMenus",
+    "clipboardWrite",
+    "<all_urls>"
+  ],
+  "background": {
+    "scripts": [
+      "shared/defaults.js",
+      "shared/chatgpt.js",
+      "background/providers.js",
+      "background/background.js"
+    ],
+    "persistent": true
+  },
+  "browser_action": {
+    "default_title": "GuteAyri",
+    "default_popup": "popup/popup.html",
+    "default_icon": "icons/icon.svg"
+  },
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "shared/defaults.js",
+        "content/core.js",
+        "content/scanner.js",
+        "content/images.js",
+        "content/filler.js",
+        "content/moodle.js",
+        "content/hud.js",
+        "content/main.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true,
+      "match_about_blank": true
+    }
+  ],
+  "commands": {
+    "_execute_browser_action": {
+      "suggested_key": {
+        "default": "Alt+Shift+Y"
+      },
+      "description": "Open the GuteAyri popup"
+    },
+    "fill-page": {
+      "suggested_key": {
+        "default": "Alt+Shift+G"
+      },
+      "description": "Fill this page"
+    },
+    "answer-selection": {
+      "suggested_key": {
+        "default": "Alt+Shift+A"
+      },
+      "description": "Answer the selected text"
+    },
+    "toggle-panel": {
+      "suggested_key": {
+        "default": "Alt+Shift+H"
+      },
+      "description": "Show or hide the answer panel"
+    },
+    "fill-reviewed": {
+      "description": "Fill the answers waiting for review"
+    },
+    "undo-fills": {
+      "description": "Undo the last fills"
+    },
+    "toggle-auto": {
+      "description": "Turn auto mode on or off"
+    }
+  },
+  "web_accessible_resources": [
+    "fonts/*.woff2"
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "guteayri@extension",
+      "strict_min_version": "140.0",
+      "data_collection_permissions": {
+        "required": [
+          "websiteContent",
+          "browsingActivity",
+          "authenticationInfo"
+        ]
+      }
+    }
+  }
+}

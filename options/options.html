@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GuteAyri settings</title>
+  <link rel="stylesheet" href="../shared/tokens.css">
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <div class="hero-text">
+        <h1>GuteAyri</h1>
+        <p class="lede">Reads the questions on a page, including the images, and fills in the answers using the AI model you choose.</p>
+        <dl class="setup" id="setup" aria-label="Current setup"></dl>
+        <p class="hint" id="hero-hint"></p>
+      </div>
+      <div class="namegrid" id="namegrid" aria-hidden="true"></div>
+    </header>
+
+    <section class="part" id="part-provider">
+      <h2>Provider</h2>
+      <p class="sub">Your key or sign-in stays in this browser and is only sent to the provider you pick. ChatGPT and CLIProxyAPI run on a subscription you already pay for instead of a key.</p>
+      <div class="providers" id="providers" role="radiogroup" aria-label="Provider"></div>
+
+      <div class="detail">
+        <div class="row" id="account-row" hidden>
+          <span class="cap">Account</span>
+          <div class="field account">
+            <span class="account-state" id="account-state"></span>
+            <button class="btn solid small" id="sign-in" type="button">Continue with ChatGPT</button>
+            <button class="btn ghost small" id="sign-in-other" type="button">Another account</button>
+            <button class="btn ghost small" id="sign-out" type="button">Sign out</button>
+          </div>
+          <a class="aside" id="usage-link" target="_blank" rel="noreferrer">Plan usage and limits</a>
+        </div>
+        <div class="row" id="key-row">
+          <label class="cap" for="apiKey">API key</label>
+          <div class="field">
+            <input id="apiKey" type="password" spellcheck="false" autocomplete="off" placeholder="Paste your key">
+            <button class="btn ghost small" id="toggle-key" type="button">Show</button>
+          </div>
+          <a class="aside" id="key-link" target="_blank" rel="noreferrer">Get a key</a>
+        </div>
+        <div class="row">
+          <label class="cap" for="model">Model</label>
+          <div class="field">
+            <input id="model" list="model-list" spellcheck="false" autocomplete="off">
+            <datalist id="model-list"></datalist>
+            <button class="btn ghost small" id="load-models" type="button">Load models</button>
+          </div>
+          <span class="aside" id="model-count"></span>
+        </div>
+        <div class="row" id="workspace-row" hidden>
+          <label class="cap" for="workspaceId">Workspace ID</label>
+          <div class="field">
+            <input id="workspaceId" spellcheck="false" autocomplete="off" placeholder="Only for organization-wide keys">
+          </div>
+          <span class="aside">In the Console under Settings → Workspaces</span>
+        </div>
+        <div class="row" id="base-row">
+          <label class="cap" for="baseUrl">Base URL</label>
+          <div class="field">
+            <input id="baseUrl" spellcheck="false" autocomplete="off">
+          </div>
+          <span class="aside" id="base-note"></span>
+        </div>
+        <div class="row actions">
+          <span class="cap"></span>
+          <div class="field">
+            <button class="btn solid" id="test" type="button">Test connection</button>
+            <span class="result" id="test-result" role="status"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="part">
+      <h2>Reasoning</h2>
+      <p class="sub">How long the model thinks before it answers. Higher levels get hard questions right more often but are slower and cost more. Models without a reasoning setting ignore this.</p>
+      <div class="levels" id="levels" role="radiogroup" aria-label="Reasoning"></div>
+    </section>
+
+    <section class="part">
+      <h2>Instructions</h2>
+      <p class="sub">What the model is told before every page. GuteAyri adds the rules for reading fields and returning answers on its own, so you only need to describe how to answer.</p>
+      <textarea id="systemPrompt" rows="9" spellcheck="true"></textarea>
+      <div class="under">
+        <button class="btn ghost small" id="reset-prompt" type="button">Restore the default</button>
+        <span class="aside" id="prompt-count"></span>
+      </div>
+    </section>
+
+    <section class="part">
+      <h2>Knowledge</h2>
+      <p class="sub">Notes the model reads alongside every page: course material, formulas, vocabulary, or anything it should know. Turn a topic off to keep it without sending it.</p>
+      <ol class="topics" id="topics"></ol>
+      <div class="under">
+        <button class="btn solid" id="add-topic" type="button">Add a topic</button>
+        <label class="btn ghost" for="import-file">Import a text file</label>
+        <input type="file" id="import-file" class="sr" accept=".txt,.md,.markdown,.csv,.json,.html,.tex,text/*" multiple>
+        <span class="aside" id="topics-count"></span>
+      </div>
+    </section>
+
+    <section class="part">
+      <h2>Shortcuts</h2>
+      <p class="sub" id="keys-sub">Click a shortcut, then press the keys you want. Combine Alt, Ctrl or ⌘ with a letter, number or arrow; F1 to F12 work on their own.</p>
+      <ol class="keys" id="keys"></ol>
+    </section>
+
+    <section class="part">
+      <h2>Behavior</h2>
+      <div class="toggles">
+        <label class="toggle"><input type="checkbox" class="sr" id="autoMode"><span class="bubble" aria-hidden="true"></span>
+          <span><strong>Fill new questions as they appear</strong><em>Watches each page and runs on its own when fields show up, like the next page of a quiz.</em></span></label>
+        <div class="sites" id="sites-wrap">
+          <label class="cap" for="autoSites">Only on these sites</label>
+          <textarea id="autoSites" rows="3" spellcheck="false" placeholder="moodle.myschool.edu&#10;*.instructure.com&#10;Leave empty to run everywhere"></textarea>
+        </div>
+        <label class="toggle"><input type="checkbox" class="sr" id="reviewFirst"><span class="bubble" aria-hidden="true"></span>
+          <span><strong>Show answers before filling them</strong><em>Answers wait in the panel until you press Fill answers.</em></span></label>
+        <label class="toggle"><input type="checkbox" class="sr" id="showPanel"><span class="bubble" aria-hidden="true"></span>
+          <span><strong>Show the answer panel while filling</strong><em>Turn off to fill quietly. The answers are still kept: open them with the shortcut for showing the answer panel. Errors still appear briefly.</em></span></label>
+        <label class="toggle"><input type="checkbox" class="sr" id="includeScreenshot"><span class="bubble" aria-hidden="true"></span>
+          <span><strong>Send a screenshot of the page too</strong><em>Helps with diagrams drawn in CSS and questions laid out visually. Uses more tokens.</em></span></label>
+        <label class="toggle"><input type="checkbox" class="sr" id="clickButtons"><span class="bubble" aria-hidden="true"></span>
+          <span><strong>Click answer buttons</strong><em>For quizzes where each option is a button. Submit, next and navigation buttons are never pressed.</em></span></label>
+        <label class="toggle"><input type="checkbox" class="sr" id="fillPersonal"><span class="bubble" aria-hidden="true"></span>
+          <span><strong>Fill personal fields from my notes</strong><em>Name, email or student ID, taken only from your Knowledge topics.</em></span></label>
+      </div>
+      <div class="numbers">
+        <label class="num"><span class="cap">Images per page</span><input type="number" id="maxImages" min="0" max="40"></label>
+        <label class="num"><span class="cap">Page text limit</span><input type="number" id="maxChars" min="5000" max="400000" step="5000"><span class="aside">characters</span></label>
+      </div>
+    </section>
+
+    <footer class="end">
+      <p>GuteAyri never presses submit. Check its answers before you hand anything in.</p>
+    </footer>
+  </div>
+
+  <div class="saved" id="saved" role="status" aria-live="polite">Saved</div>
+
+  <script src="../vendor/browser-polyfill.min.js"></script>
+  <script src="../shared/defaults.js"></script>
+  <script src="../shared/chatgpt.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

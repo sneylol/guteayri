@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GuteAyri</title>
+  <link rel="stylesheet" href="../shared/tokens.css">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main class="sheet">
+    <header class="top">
+      <svg class="logo" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8.6" fill="none" stroke="var(--ink)" stroke-width="1.4"/><ellipse cx="10.3" cy="10.4" rx="6.1" ry="5.6" transform="rotate(-14 10 10)" fill="var(--lead)"/></svg>
+      <h1>GuteAyri</h1>
+      <button class="icon" id="open-settings" title="Settings" aria-label="Settings">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="2.6"/><path d="M10 2.5v2.2M10 15.3v2.2M17.5 10h-2.2M4.7 10H2.5M15.3 4.7l-1.6 1.6M6.3 13.7l-1.6 1.6M15.3 15.3l-1.6-1.6M6.3 6.3L4.7 4.7"/></svg>
+      </button>
+    </header>
+
+    <button class="fill" id="fill">
+      <span class="bubble on" aria-hidden="true"><span></span></span>
+      <span class="fill-text">Fill this page</span>
+      <kbd id="fill-key"></kbd>
+    </button>
+
+    <p class="notice" id="notice" hidden></p>
+
+    <section class="lines">
+      <div class="line">
+        <label class="cap" for="provider">Provider</label>
+        <select id="provider"></select>
+      </div>
+      <div class="line">
+        <label class="cap" for="model">Model</label>
+        <input id="model" list="model-list" spellcheck="false" autocomplete="off">
+        <datalist id="model-list"></datalist>
+      </div>
+      <fieldset class="line reasoning">
+        <legend class="cap">Reasoning</legend>
+        <div class="choices" id="reasoning"></div>
+      </fieldset>
+    </section>
+
+    <section class="toggles">
+      <label class="toggle line">
+        <input type="checkbox" class="sr" id="autoMode">
+        <span class="bubble" aria-hidden="true"></span>
+        <span>Fill new questions as they appear</span>
+      </label>
+      <label class="toggle line">
+        <input type="checkbox" class="sr" id="reviewFirst">
+        <span class="bubble" aria-hidden="true"></span>
+        <span>Show answers before filling them</span>
+      </label>
+      <label class="toggle line">
+        <input type="checkbox" class="sr" id="includeScreenshot">
+        <span class="bubble" aria-hidden="true"></span>
+        <span>Send a screenshot of the page too</span>
+      </label>
+    </section>
+
+    <section class="results" id="results" hidden></section>
+  </main>
+  <script src="../vendor/browser-polyfill.min.js"></script>
+  <script src="../shared/defaults.js"></script>
+  <script src="../shared/chatgpt.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

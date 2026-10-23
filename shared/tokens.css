@@ -1,0 +1,115 @@
+/* GuteAyri — design tokens. The answer sheet: white stock, dropout-ink rules, No. 2 pencil fills. */
+
+@font-face { font-family: "GuteAyri Barlow"; font-weight: 400; src: url("../fonts/Barlow-400.woff2") format("woff2"); }
+@font-face { font-family: "GuteAyri Barlow"; font-weight: 500; src: url("../fonts/Barlow-500.woff2") format("woff2"); }
+@font-face { font-family: "GuteAyri Barlow"; font-weight: 600; src: url("../fonts/Barlow-600.woff2") format("woff2"); }
+@font-face { font-family: "GuteAyri Barlow Condensed"; font-weight: 500; src: url("../fonts/BarlowCondensed-500.woff2") format("woff2"); }
+@font-face { font-family: "GuteAyri Barlow Condensed"; font-weight: 600; src: url("../fonts/BarlowCondensed-600.woff2") format("woff2"); }
+@font-face { font-family: "GuteAyri Barlow Condensed"; font-weight: 700; src: url("../fonts/BarlowCondensed-700.woff2") format("woff2"); }
+
+:root {
+  --paper: #FBFBF9;
+  --paper-2: #F4F3F0;
+  --ink: #D8435B;
+  --ink-deep: #B4304A;
+  --rule: #F1CBD2;
+  --wash: #FCEEF1;
+  --lead: #2A2B30;
+  --lead-hi: #4D4F57;
+  --on-lead: #FBFBF9;
+  --text: #232428;
+  --muted: #6C6E76;
+  --ok: #2F7A55;
+
+  --sans: "GuteAyri Barlow", "Helvetica Neue", Arial, sans-serif;
+  --cond: "GuteAyri Barlow Condensed", "Arial Narrow", sans-serif;
+
+  --pencil:
+    repeating-linear-gradient(118deg, rgba(255, 255, 255, .07) 0 1px, transparent 1px 3px),
+    radial-gradient(circle at 34% 30%, var(--lead-hi), var(--lead) 62%);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #1C1D21;
+    --paper-2: #232429;
+    --ink: #F07A8C;
+    --ink-deep: #F59AA8;
+    --rule: #47303A;
+    --wash: #2A2025;
+    --lead: #ECEAE4;
+    --lead-hi: #FFFFFF;
+    --on-lead: #1C1D21;
+    --text: #ECEBE7;
+    --muted: #A0A2AA;
+    --ok: #7CCBA2;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--paper);
+  color: var(--text);
+  font: 400 14px/1.45 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* A bubble: the one control shape. Radios, toggles and choices all use it. */
+.bubble {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: 50%;
+  border: 1.25px solid var(--ink);
+  color: var(--ink);
+  font: 600 11px/1 var(--cond);
+  overflow: hidden;
+}
+.bubble::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: 50%;
+  background: var(--pencil);
+  clip-path: circle(0% at 28% 62%);
+  transition: clip-path .32s cubic-bezier(.3, .7, .2, 1);
+}
+.bubble > span { position: relative; z-index: 1; transition: color .2s; }
+input:checked + .bubble, .bubble.on { border-color: var(--lead); color: var(--on-lead); }
+input:checked + .bubble::after, .bubble.on::after { clip-path: circle(80% at 50% 50%); }
+input:focus-visible + .bubble { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 4px;
+  font: 600 14px/1 var(--cond);
+  letter-spacing: .02em;
+  cursor: pointer;
+  background: none;
+  white-space: nowrap;
+}
+.btn.solid { background: var(--lead); color: var(--on-lead); }
+.btn.solid:hover { background: var(--ink); color: #fff; }
+.btn.ghost { box-shadow: inset 0 0 0 1px var(--rule); color: var(--text); }
+.btn.ghost:hover { box-shadow: inset 0 0 0 1px var(--ink); color: var(--ink); }
+.btn:disabled { opacity: .5; cursor: default; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}
