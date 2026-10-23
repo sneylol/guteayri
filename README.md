@@ -8,8 +8,8 @@ A browser extension for Firefox, Zen, Chrome and Safari that reads the questions
 
 | Package | For | Folder to load | Zip |
 |---|---|---|---|
-| Firefox (Manifest V2) | Firefox, Zen | `dist/firefox` (or this folder's `manifest.json`) | `dist/guteayri-firefox-1.0.0.zip` |
-| Chrome (Manifest V3) | Chrome, Edge, Brave and other Chromium browsers | `dist/chrome` | `dist/guteayri-chrome-1.0.0.zip` |
+| Firefox (Manifest V2) | Firefox, Zen | `dist/firefox` (or this folder's `manifest.json`) | `dist/guteayri-firefox-1.0.1.zip` |
+| Chrome (Manifest V3) | Chrome, Edge, Brave and other Chromium browsers | `dist/chrome` | `dist/guteayri-chrome-1.0.1.zip` |
 | Safari (Manifest V3) | Safari on macOS | `dist/GuteAyri.app` (built when Xcode is installed) | — |
 
 ## Install

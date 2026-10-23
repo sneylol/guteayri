@@ -1,8 +1,8 @@
 # GuteAyri store listing
 
 Everything the Chrome Web Store, Firefox Add-ons (AMO) and Edge Add-ons ask for, ready to paste. The packages come from `node tools/build.mjs`:
-- **Chrome and Edge:** `dist/guteayri-chrome-1.0.0.zip`
-- **Firefox:** `dist/guteayri-firefox-1.0.0.zip`
+- **Chrome and Edge:** `dist/guteayri-chrome-1.0.1.zip`
+- **Firefox:** `dist/guteayri-firefox-1.0.1.zip`
 
 Images are in `store/images/`. The privacy policy is `PRIVACY.md`, published at https://sneylol.github.io/guteayri/PRIVACY.html.
 
