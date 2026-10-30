@@ -179,10 +179,11 @@
     return fontsPromise;
   };
 
-  /* Page-level styles for marking filled fields. Injected per document, including same-origin frames. */
+  /* Page-level styles for marking filled fields. Injected per document, including same-origin frames,
+     and per shadow root, since a document's styles don't reach inside one. */
   GR.ensurePageStyle = (doc) => {
     if (!doc || doc.getElementById("guteayri-page-style")) return;
-    const style = doc.createElement("style");
+    const style = (doc.ownerDocument || doc).createElement("style");
     style.id = "guteayri-page-style";
     style.textContent = `
       [data-guteayri-mark] { outline: 2px solid #D8435B !important; outline-offset: 2px !important; transition: outline-color .3s ease; }
@@ -192,6 +193,6 @@
       @keyframes guteayri-flash { 0%,100% { outline-color: #D8435B; outline-width: 2px; } 50% { outline-color: #2A2B30; outline-width: 4px; } }
       @media (prefers-reduced-motion: reduce) { [data-guteayri-flash] { animation: none; outline-width: 4px !important; } }
     `;
-    (doc.head || doc.documentElement).appendChild(style);
+    (doc.head || doc.documentElement || doc).appendChild(style);
   };
 })();

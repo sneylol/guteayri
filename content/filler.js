@@ -153,7 +153,8 @@
     for (let i = 0; i < 8 && !option; i++) {
       await GR.sleep(120);
       const ctl = el.getAttribute("aria-controls") || el.getAttribute("aria-owns");
-      const scope = (ctl && doc.getElementById(ctl)) || doc;
+      const root = el.getRootNode();
+      const scope = (ctl && (root.getElementById(ctl) || doc.getElementById(ctl))) || root;
       const opts = [...scope.querySelectorAll('[role=option], [role=menuitem], li[data-value], .select2-results__option, .vs__dropdown-option, .ant-select-item-option')].filter(GR.visible);
       option = bestMatch(opts, text, (o) => o.innerText || o.textContent);
     }
@@ -231,7 +232,7 @@
 
   GR.mark = (field, state) => {
     const t = markTarget(field.el);
-    GR.ensurePageStyle(t.ownerDocument);
+    GR.ensurePageStyle(t.getRootNode());
     t.setAttribute("data-guteayri-mark", state);
     field.markEl = t;
   };
@@ -251,6 +252,7 @@
       if (!first) first = t;
       t.removeAttribute("data-guteayri-flash");
       void t.offsetWidth;
+      GR.ensurePageStyle(t.getRootNode());
       t.setAttribute("data-guteayri-flash", "");
       setTimeout(() => t.removeAttribute("data-guteayri-flash"), 2400);
     }

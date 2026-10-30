@@ -568,7 +568,7 @@
     return t;
   }
 
-  GR.scanApi = { emit, register, addImage, walk, walkChildren, labelText, quote: q, idFor };
+  GR.scanApi = { emit, register, addImage, walk, walkChildren, labelText, quote: q, idFor, groupForKey };
 
   GR.scan = function scan(opts = {}) {
     const ctx = {

@@ -253,9 +253,12 @@
 
   /* ---------- Auto mode ---------- */
 
-  let observer = null, timer = null, autoRuns = 0, lastAuto = 0;
+  let observer = null, timer = null, autoRuns = 0, lastAuto = 0, stopWatch = null;
 
   function hasFreshFields() {
+    // Adapters know better on pages whose questions change inside shadow roots.
+    const fresh = GR.autoFresh ? GR.autoFresh() : undefined;
+    if (fresh !== undefined) return fresh;
     for (const el of candidateEls()) {
       if (GR.seen.has(el) || el.closest("#guteayri-hud-host")) continue;
       if (el.disabled) continue;
@@ -267,7 +270,7 @@
   function scheduleAuto(delay) {
     clearTimeout(timer);
     timer = setTimeout(async () => {
-      if (GR.busy || autoRuns >= 40) return;
+      if (GR.busy || autoRuns >= (GR.autoLimit || 40)) return;
       if (Date.now() - lastAuto < 4000) return scheduleAuto(4000);
       if (!hasFreshFields()) return;
       autoRuns++;
@@ -285,11 +288,14 @@
         scheduleAuto(1800);
       });
       observer.observe(document.documentElement, { childList: true, subtree: true });
+      if (GR.autoWatch) stopWatch = GR.autoWatch(() => scheduleAuto(800));
       scheduleAuto(1200);
     } else if (!on && observer) {
       observer.disconnect();
       observer = null;
       clearTimeout(timer);
+      if (stopWatch) stopWatch();
+      stopWatch = null;
     }
   }
 

@@ -8,8 +8,8 @@ A browser extension for Firefox, Zen, Chrome and Safari that reads the questions
 
 | Package | For | Folder to load | Zip |
 |---|---|---|---|
-| Firefox (Manifest V2) | Firefox, Zen | `dist/firefox` (or this folder's `manifest.json`) | `dist/guteayri-firefox-1.0.2.zip` |
-| Chrome (Manifest V3) | Chrome, Edge, Brave and other Chromium browsers | `dist/chrome` | `dist/guteayri-chrome-1.0.2.zip` |
+| Firefox (Manifest V2) | Firefox, Zen | `dist/firefox` (or this folder's `manifest.json`) | `dist/guteayri-firefox-1.0.3.zip` |
+| Chrome (Manifest V3) | Chrome, Edge, Brave and other Chromium browsers | `dist/chrome` | `dist/guteayri-chrome-1.0.3.zip` |
 | Safari (Manifest V3) | Safari on macOS | `dist/GuteAyri.app` (built when Xcode is installed) | — |
 
 ## Install
@@ -54,6 +54,7 @@ Change any of them under **Settings → Shortcuts**: click a shortcut and press 
 - Images attached to questions: `<img>`, `<canvas>`, inline SVG, lazy-loaded and logged-in images, with screenshot cropping as the last resort
 - Formulas from KaTeX, MathJax and MathML, sent to the model as TeX
 - Moodle quizzes: every core question type (multiple choice, true/false, short answer, numerical with units, calculated, matching, select missing words, Cloze, essay in TinyMCE, Atto or plain text, drag and drop into text, drag and drop onto image, drag markers, ordering) and the CodeRunner, Gap Fill, Word Select, Crossword, Formulas, STACK, Kprime, Multiple True/False and Matrix plugins. Auto mode follows a quiz page by page. Drag-and-drop answers are placed through Moodle's own keyboard and mouse handling, so what you see is what gets submitted. Not filled: essay file attachments, drawing and audio/video recording questions, and interactive GeoGebra/JSXGraph applets
+- NetAcad and Skills for All assessments: multiple choice, matching with dropdowns, and matching by clicking a category and then an option. Only the question on screen is read, so earlier answers are left alone, and auto mode answers each new question as you reach it. An answer counts as filled only once the page confirms it. Undo reverts choices and earlier dropdown selections; a first dropdown selection or a category connection stays, because the player offers no way to clear them
 - Other questions with nothing to fill (drag-and-drop, hotspots): the answer is shown in the panel
 - Pages extensions can't enter (Firefox's PDF viewer, reader view): the popup answers from a screenshot
 
@@ -94,7 +95,7 @@ manifest.json            Firefox / Zen manifest (Manifest V2)
 platform/chrome/         Chrome manifest (Manifest V3); the Safari manifest is made from it
 background/   providers.js (API adapters) · background.js (prompting, routing, menus, shortcuts)
               service-worker.js (Chrome entry point that loads the same scripts)
-content/      scanner → images → filler → moodle (Moodle question types) → hud (answer panel) → main (runs, auto mode)
+content/      scanner → images → filler → moodle (Moodle question types) → netacad (NetAcad assessments) → hud (answer panel) → main (runs, auto mode)
               page-bridge.js (Chrome and Safari: reaches page editors those browsers keep content scripts away from)
 popup/        toolbar popup
 options/      settings page
