@@ -98,7 +98,7 @@ function siteOf(url) {
   }
 }
 
-async function solvePage(page) {
+async function solvePage(page, signal = null) {
   const s = await guteayriLoadSettings();
   // The page text carries each image's alt text next to its {{IMG n}} marker.
   const parts = imageParts((page.images || []).map((img) => Object.assign({ altInPage: true }, img)));
@@ -115,18 +115,18 @@ async function solvePage(page) {
   const maxTokens = { high: 32000, max: 64000 }[s.reasoning] || 16000;
   // Unreadable JSON counts as a failed attempt too, so the next key or provider gets a turn.
   const res = await guteayriWithFallback(s, "page", async (attempt) => {
-    const r = await guteayriCall(attempt, { system: solveSystem(s), parts, json: true, maxTokens });
+    const r = await guteayriCall(attempt, { system: solveSystem(s), parts, json: true, maxTokens, signal });
     return Object.assign(r, { answers: normalizeAnswers(guteayriExtractJson(r.text)) });
-  });
+  }, signal);
   return { answers: res.answers, model: res.model, provider: res.provider, via: res.via, imagesDropped: res.imagesDropped, usage: res.usage };
 }
 
-async function askFree({ question, images }) {
+async function askFree({ question, images }, signal = null) {
   const s = await guteayriLoadSettings();
   const system = `${String(s.systemPrompt || GUTEAYRI_DEFAULT_PROMPT).trim()}\n\nAnswer the question directly. Lead with the answer, then give at most three short sentences of reasoning. Plain text only.${knowledgeBlock(s)}`;
   const parts = imageParts(images);
   parts.push({ type: "text", text: question });
-  const res = await guteayriWithFallback(s, "question", (attempt) => guteayriCall(attempt, { system, parts, json: false, maxTokens: 8000 }));
+  const res = await guteayriWithFallback(s, "question", (attempt) => guteayriCall(attempt, { system, parts, json: false, maxTokens: 8000, signal }), signal);
   return { text: res.text.trim(), model: res.model, usage: res.usage };
 }
 
@@ -250,6 +250,38 @@ async function sendToTop(tabId, msg) {
   return true;
 }
 
+/* ---------- Stopping a run ---------- */
+
+/* Requests in progress, per tab, so the stop shortcut and the panel's Stop button can end them. */
+const running = new Map(); // tabId -> Set<AbortController>
+
+/* Runs `work(signal)` as a request that can be stopped for this tab. */
+async function stoppable(tabId, work) {
+  const ctrl = new AbortController();
+  if (tabId != null) {
+    if (!running.has(tabId)) running.set(tabId, new Set());
+    running.get(tabId).add(ctrl);
+  }
+  try {
+    return await work(ctrl.signal);
+  } finally {
+    const set = running.get(tabId);
+    if (set) {
+      set.delete(ctrl);
+      if (!set.size) running.delete(tabId);
+    }
+  }
+}
+
+/* Stops the tab's requests, and tells its frames to stop filling. The top frame says so if nothing was running. */
+async function stopRuns(tabId) {
+  const set = running.get(tabId);
+  const requests = set ? set.size : 0;
+  if (set) for (const ctrl of set) ctrl.abort();
+  running.delete(tabId);
+  await browser.tabs.sendMessage(tabId, { type: "cancel", requests }).catch(() => {});
+}
+
 /* ---------- Messages ---------- */
 
 const errorText = (err) => (err && err.message) || String(err);
@@ -258,10 +290,14 @@ browser.runtime.onMessage.addListener((msg, sender) => {
   const tabId = sender.tab && sender.tab.id;
   switch (msg && msg.type) {
     case "solve":
-      return solvePage(msg.page).then((result) => ({ ok: true, result }), (err) => ({ ok: false, error: errorText(err), code: err.code }));
+      return stoppable(tabId, (signal) => solvePage(msg.page, signal)).then((result) => ({ ok: true, result }), (err) => ({ ok: false, error: errorText(err), code: err.code }));
 
     case "ask":
-      return askFree(msg).then((r) => ({ ok: true, result: r }), (err) => ({ ok: false, error: errorText(err) }));
+      return stoppable(tabId, (signal) => askFree(msg, signal)).then((r) => ({ ok: true, result: r }), (err) => ({ ok: false, error: errorText(err), code: err.code }));
+
+    case "cancelRun": // the panel's Stop button
+      if (tabId == null) return;
+      return stopRuns(tabId);
 
     case "fetchImage":
       return fetchImage(msg.url).then((img) => ({ ok: true, img }), (err) => ({ ok: false, error: errorText(err) }));
@@ -330,10 +366,11 @@ async function answerSelection(tab, text) {
   }
   await sendToTop(tab.id, { type: "hud", op: "ask", args: [q], frameId: 0 });
   try {
-    const r = await askFree({ question: q, images: [] });
+    const r = await stoppable(tab.id, (signal) => askFree({ question: q, images: [] }, signal));
     await sendToTop(tab.id, { type: "hud", op: "askResult", args: [q, r.text, r.model, r.usage], frameId: 0 });
   } catch (e) {
-    await sendToTop(tab.id, { type: "hud", op: "error", args: [errorText(e)], frameId: 0 });
+    if (e.code === "cancelled") await sendToTop(tab.id, { type: "hud", op: "stopped", args: [], frameId: 0 });
+    else await sendToTop(tab.id, { type: "hud", op: "error", args: [errorText(e)], frameId: 0 });
   }
 }
 
@@ -351,6 +388,9 @@ browser.commands.onCommand.addListener(async (command) => {
       if (res && res.restricted) (browser.action || browser.browserAction).openPopup().catch(() => {});
       break;
     }
+    case "cancel-run":
+      await stopRuns(tab.id);
+      break;
     case "answer-selection":
       await answerSelection(tab, await selectionIn(tab));
       break;
@@ -397,10 +437,12 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
     await sendToTop(tab.id, { type: "hud", op: "ask", args: [label], frameId: 0 });
     try {
       const img = await fetchImage(info.srcUrl);
-      const r = await askFree({ question: "Answer the question shown in Image 1. If it shows several questions, answer each one.", images: [Object.assign({ n: 1 }, img)] });
+      const question = "Answer the question shown in Image 1. If it shows several questions, answer each one.";
+      const r = await stoppable(tab.id, (signal) => askFree({ question, images: [Object.assign({ n: 1 }, img)] }, signal));
       await sendToTop(tab.id, { type: "hud", op: "askResult", args: [label, r.text, r.model, r.usage], frameId: 0 });
     } catch (e) {
-      await sendToTop(tab.id, { type: "hud", op: "error", args: [errorText(e)], frameId: 0 });
+      if (e.code === "cancelled") await sendToTop(tab.id, { type: "hud", op: "stopped", args: [], frameId: 0 });
+      else await sendToTop(tab.id, { type: "hud", op: "error", args: [errorText(e)], frameId: 0 });
     }
   }
 });

@@ -101,12 +101,31 @@
     });
   }
 
+  /* Fills the answers in page order. Returns true when the person stopped it part-way. */
   async function applyAnswers(answers, rows) {
+    GR.filling = true;
+    let stopped = false;
+    try {
+      stopped = await fillAll(answers, rows);
+    } finally {
+      GR.filling = false;
+    }
+    // Some pages need a moment after the last fill (STACK checks each answer on the server).
+    if (GR.afterFills && !stopped) await GR.afterFills();
+    // Undo turns this set back into one the person can review and fill again.
+    GR.lastApplied = { answers, rows };
+    return stopped;
+  }
+
+  async function fillAll(answers, rows) {
+    let stopped = false;
     for (let i = 0; i < answers.length; i++) {
       const a = answers[i], row = rows[i];
       if (!a.fills.length) continue;
-      let ok = 0, failed = 0, reason = "";
+      let ok = 0, failed = 0, reason = "", cut = false;
       for (const fill of a.fills) {
+        // Stopped: leave this field and every one after it as they are.
+        if (GR.cancelled) { cut = true; break; }
         const field = GR.fieldById(fill.id);
         const res = await GR.applyFill(fill);
         if (res.ok && !res.skipped) {
@@ -122,22 +141,26 @@
         }
         await GR.sleep(25);
       }
+      if (cut) {
+        stopped = true;
+        row.status = ok ? "partial" : "failed";
+        row.reason = "you stopped the run";
+        continue;
+      }
       row.status = failed === 0 ? (ok ? "filled" : "unfilled") : ok ? "partial" : "failed";
       row.reason = reason;
       if (row.status === "unfilled") row.reviewable = false;
     }
-    // Some pages need a moment after the last fill (STACK checks each answer on the server).
-    if (GR.afterFills) await GR.afterFills();
-    // Undo turns this set back into one the person can review and fill again.
-    GR.lastApplied = { answers, rows };
-    return rows;
+    return stopped;
   }
 
   GR.run = async function run({ auto = false } = {}) {
     if (GR.busy) return;
     if (GR.handledByParent()) return;
     GR.busy = true;
+    GR.cancelled = false;
     const s = await GR.settings();
+    GR.outline = !!s.outlineFields;
     let started = false;
     const start = (status, sub) => {
       if (!started) panel.start(0, status, sub);
@@ -171,6 +194,11 @@
         ? await GR.collectImages(scan.images, (i, n) => panel.status(0, `Found ${scan.fields.length} ${fieldWord}`, `Reading image ${i} of ${n}`))
         : [];
       const screenshot = s.includeScreenshot && GR.isTop ? await GR.captureViewport(1600) : null;
+      // Stopped while reading images: nothing has been sent.
+      if (GR.cancelled) {
+        panel.stopped(0);
+        return;
+      }
 
       const effort = s.reasoning === "off" ? "no reasoning" : `${s.reasoning} reasoning`;
       start(`Asking ${model}`, `${effort}. Large pages and high reasoning can take a minute.`);
@@ -179,6 +207,10 @@
         type: "solve",
         page: { title: document.title, url: location.href, text: scan.text, images, screenshot },
       });
+      if (res && !res.ok && res.code === "cancelled") {
+        panel.stopped(0);
+        return;
+      }
       if (!res || !res.ok) throw new Error((res && res.error) || "No response from the background page.");
 
       const { answers, imagesDropped } = res.result;
@@ -196,8 +228,9 @@
         GR.pending = { answers, rows, meta };
         panel.results(0, rows, Object.assign({ review: true }, meta));
       } else {
-        await applyAnswers(answers, rows);
+        const stopped = await applyAnswers(answers, rows);
         panel.results(0, rows, meta);
+        if (stopped) panel.toast(0, "Stopped");
       }
     } catch (err) {
       panel.error(0, err.message || String(err));
@@ -219,8 +252,10 @@
         const p = GR.pending;
         if (!p) return;
         GR.pending = null;
-        await applyAnswers(p.answers, p.rows);
+        GR.cancelled = false;
+        const stopped = await applyAnswers(p.answers, p.rows);
         panel.update(0, p.rows, false);
+        if (stopped) panel.toast(0, "Stopped");
         return;
       }
     }
@@ -248,6 +283,13 @@
       case "applyPending":
         GR.handleLocal(msg);
         return;
+      case "cancel": {
+        // The stop shortcut or the panel's Stop button. The request itself is stopped in the background.
+        const active = GR.busy || GR.filling;
+        if (active) GR.cancelled = true;
+        if (GR.isTop && !active && !msg.requests && !GR.hud.working()) GR.hud.toast(0, "Nothing is running");
+        return;
+      }
     }
   });
 

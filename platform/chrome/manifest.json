@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "GuteAyri",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Reads the questions on any page, including images, and fills in the answers with the AI model you choose.",
   "minimum_chrome_version": "111",
   "icons": {
@@ -101,6 +101,9 @@
     },
     "toggle-auto": {
       "description": "Turn auto mode on or off"
+    },
+    "cancel-run": {
+      "description": "Stop the running request"
     },
     "_execute_action": {
       "suggested_key": {

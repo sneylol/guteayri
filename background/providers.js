@@ -22,6 +22,33 @@ const ATTEMPTS = [
   { reasoning: false, json: false, images: false, extras: false },
 ];
 
+/* The person stopped the run (the stop shortcut or the panel's Stop button). */
+const cancelledError = () => new GuteAyriError("Stopped.", "cancelled");
+
+function checkCancel(signal) {
+  if (signal && signal.aborted) throw cancelledError();
+}
+
+/* A wait that ends early, as Stopped, when the run is stopped. */
+function pause(ms, signal) {
+  return new Promise((resolve, reject) => {
+    const stop = () => { clearTimeout(timer); reject(cancelledError()); };
+    const timer = setTimeout(() => { if (signal) signal.removeEventListener("abort", stop); resolve(); }, ms);
+    if (!signal) return;
+    if (signal.aborted) stop();
+    else signal.addEventListener("abort", stop, { once: true });
+  });
+}
+
+/* One request's abort signal: fired by the timeout or by the run being stopped. Call done() when finished. */
+function requestSignal(signal) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
+  const stop = () => ctrl.abort();
+  if (signal) signal.addEventListener("abort", stop, { once: true });
+  return { signal: ctrl.signal, done: () => { clearTimeout(timer); if (signal) signal.removeEventListener("abort", stop); } };
+}
+
 const MAX_OUTPUT_TOKENS = 64000;
 const TRANSIENT = new Set([429, 500, 502, 503, 504, 529]);
 const TOKEN_LIMIT_ERROR = /max_tokens|max_completion_tokens|maxOutputTokens|max_output|maximum[^.]*tokens|tokens[^.]*(maximum|exceed|too large)/i;
@@ -40,8 +67,10 @@ function providerConfig(settings, providerId, { keyOptional = false } = {}) {
   return { id, def, baseUrl, model, apiKey, workspaceId };
 }
 
-async function guteayriCall(settings, { system, parts, json = true, maxTokens = 16000 }) {
+async function guteayriCall(settings, { system, parts, json = true, maxTokens = 16000, signal = null }) {
   const p = providerConfig(settings);
+  // The request functions read it from here.
+  p.signal = signal;
   if (!p.model) throw new GuteAyriError(`Choose a model for ${p.def.name} in Settings.`, "config");
   const level = settings.reasoning || "medium";
   const choices = reasoningChoices(p, level);
@@ -69,6 +98,7 @@ async function guteayriCall(settings, { system, parts, json = true, maxTokens = 
 
     let choice = 0, waits = 0, grows = 0;
     for (;;) {
+      checkCancel(signal);
       opts.reasoningPatch = opts.reasoning ? choices[choice] || null : null;
       try {
         const { text, usage } = await dispatch(p, { system, parts: capImages(parts, opts.images ? imageCap : 0), maxTokens: tokens, opts });
@@ -76,6 +106,7 @@ async function guteayriCall(settings, { system, parts, json = true, maxTokens = 
         const dropped = hasImages(parts) && (!opts.images || imageCap < countImages(parts));
         return { text, model: p.model, provider: p.def.name, imagesDropped: dropped, usage: spent };
       } catch (err) {
+        if (err.code === "cancelled") throw err;
         lastErr = err;
         count(err.usage);
         if (err.code === "truncated" && grows < 2 && tokens < MAX_OUTPUT_TOKENS) {
@@ -84,7 +115,7 @@ async function guteayriCall(settings, { system, parts, json = true, maxTokens = 
           continue;
         }
         if ((TRANSIENT.has(err.status) || err.code === "network") && err.code !== "limit" && waits < 2) {
-          await new Promise((r) => setTimeout(r, waits ? 6000 : 2000));
+          await pause(waits ? 6000 : 2000, signal);
           waits++;
           continue;
         }
@@ -136,12 +167,13 @@ function settingsFor(settings, attempt) {
 const keyHint = (key) => (key && key.length > 8 ? `…${key.slice(-4)}` : "");
 
 /* Runs `run(settings)` against each provider and key in turn until one succeeds, logging every attempt.
-   `what` names the request in the log ("page", "question", "test"). */
-async function guteayriWithFallback(settings, what, run) {
+   `what` names the request in the log ("page", "question", "test"). A stopped run ends here: no other key or provider. */
+async function guteayriWithFallback(settings, what, run, signal = null) {
   const attempts = guteayriAttempts(settings);
   let first = null, skip = null, tried = 0;
   for (const a of attempts) {
     if (a.id === skip) continue;
+    checkCancel(signal);
     const s = settingsFor(settings, a);
     const def = GUTEAYRI_PROVIDERS[a.id];
     const model = (s.providers[a.id].model || def.defaultModel || "").trim();
@@ -155,6 +187,7 @@ async function guteayriWithFallback(settings, what, run) {
       return Object.assign(result, { via, provider: def.name, model: via ? `${result.model} (${via})` : result.model });
     } catch (err) {
       guteayriLog({ what, provider: a.id, keyNo: a.keyNo, keyHint: keyHint(a.key), model, ok: false, ms: Date.now() - started, code: err.code, status: err.status, error: err.message, usage: err.usage });
+      if (err.code === "cancelled") throw err;
       if (!first) first = err;
       // Another key only helps when this key was the problem; otherwise go on to the next provider.
       if (!KEY_ERRORS.has(err.code) || !a.key) skip = a.id;
@@ -345,7 +378,7 @@ async function callChatGPT(p, { system, parts, opts }) {
     const token = await chatgptAccessToken();
     res = await openStream(p, `${p.baseUrl}/responses`, { "content-type": "application/json", accept: "text/event-stream", authorization: `Bearer ${token}` }, body);
     if (res.ok) break;
-    clearTimeout(res.guteayriTimer);
+    res.guteayriDone();
     const raw = await res.text();
     let data = null;
     try { data = JSON.parse(raw); } catch (e) { /* plain-text error */ }
@@ -536,16 +569,18 @@ function networkError(p, url) {
 
 const timeoutError = (p) => new GuteAyriError(`${p.def.name} took longer than ${REQUEST_TIMEOUT_MS / 60000} minutes. Try a lower reasoning level.`, "timeout");
 
-/* Starts a streamed request. The timeout covers the whole stream, so it stays armed until readEvents finishes. */
+/* Starts a streamed request. The timeout and the stop signal cover the whole stream, so they stay armed until
+   readEvents finishes (or the caller calls res.guteayriDone() on an error response). */
 async function openStream(p, url, headers, body) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
+  checkCancel(p.signal);
+  const req = requestSignal(p.signal);
   try {
-    const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body), signal: ctrl.signal });
-    res.guteayriTimer = timer;
+    const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body), signal: req.signal });
+    res.guteayriDone = req.done;
     return res;
   } catch (err) {
-    clearTimeout(timer);
+    req.done();
+    if (p.signal && p.signal.aborted) throw cancelledError();
     throw err.name === "AbortError" ? timeoutError(p) : networkError(p, url);
   }
 }
@@ -574,25 +609,27 @@ async function readEvents(p, res, onEvent) {
     flush(buf);
   } catch (err) {
     // An interrupted stream ends without its final event; the caller reports that.
+    if (p.signal && p.signal.aborted) throw cancelledError();
     if (err.name === "AbortError") throw timeoutError(p);
   } finally {
-    clearTimeout(res.guteayriTimer);
+    res.guteayriDone();
   }
 }
 
 async function postJson(p, url, headers, body) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
-  let res;
+  checkCancel(p.signal);
+  const req = requestSignal(p.signal);
+  let res, raw;
   try {
-    res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body), signal: ctrl.signal });
+    res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body), signal: req.signal });
+    raw = await res.text();
   } catch (err) {
+    if (p.signal && p.signal.aborted) throw cancelledError();
     if (err.name === "AbortError") throw timeoutError(p);
     throw networkError(p, url);
   } finally {
-    clearTimeout(timer);
+    req.done();
   }
-  const raw = await res.text();
   let data = null;
   try { data = raw ? JSON.parse(raw) : {}; } catch (e) { data = null; }
   if (!res.ok) throw httpError(p, res.status, data, raw);

@@ -261,7 +261,7 @@ $("fallback-add").addEventListener("change", async (e) => {
 /* ---------- Log ---------- */
 
 const LOG_WHAT = { page: "Page", question: "Question", test: "Test" };
-const LOG_REASON = { auth: "Key rejected", limit: "Out of credit", rate: "Rate-limited", workspace: "Workspace", network: "Unreachable", timeout: "Timed out",
+const LOG_REASON = { cancelled: "Stopped", auth: "Key rejected", limit: "Out of credit", rate: "Rate-limited", workspace: "Workspace", network: "Unreachable", timeout: "Timed out",
   model: "Unknown model", "no-key": "No key", config: "Not set up", refusal: "Declined", "bad-json": "Unreadable answer", empty: "Empty answer", truncated: "Cut off", incomplete: "Cut off" };
 
 function keyLabel(row) {
@@ -642,7 +642,7 @@ const canEditKeys = typeof browser.commands.update === "function";
 
 async function renderKeys() {
   const cmds = await browser.commands.getAll();
-  const order = ["fill-page", "answer-selection", "toggle-panel", "fill-reviewed", "undo-fills", "toggle-auto", "_execute_browser_action", "_execute_action"];
+  const order = ["fill-page", "cancel-run", "answer-selection", "toggle-panel", "fill-reviewed", "undo-fills", "toggle-auto", "_execute_browser_action", "_execute_action"];
   cmds.sort((a, b) => order.indexOf(a.name) - order.indexOf(b.name));
   if (!canEditKeys) {
     const rows = cmds.map((c) => readOnlyKeyRow(c));
@@ -790,7 +790,7 @@ function flashSaved() {
 /* ---------- Behavior ---------- */
 
 function renderBehavior() {
-  for (const key of ["autoMode", "reviewFirst", "showPanel", "includeScreenshot", "clickButtons", "fillPersonal"]) {
+  for (const key of ["autoMode", "reviewFirst", "showPanel", "outlineFields", "includeScreenshot", "clickButtons", "fillPersonal"]) {
     $(key).checked = !!settings[key];
     $(key).onchange = (e) => {
       save({ [key]: e.target.checked });

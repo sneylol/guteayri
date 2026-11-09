@@ -165,6 +165,7 @@ var GUTEAYRI_DEFAULTS = {
   reviewFirst: false,
   showPanel: true,          // false: fill without opening the answer panel
   includeScreenshot: false,
+  outlineFields: false,     // outline filled fields on the page
   clickButtons: true,
   fillPersonal: false,
   maxImages: 12,

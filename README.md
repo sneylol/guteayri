@@ -8,8 +8,8 @@ A browser extension for Firefox, Zen, Chrome and Safari that reads the questions
 
 | Package | For | Folder to load | Zip |
 |---|---|---|---|
-| Firefox (Manifest V2) | Firefox, Zen | `dist/firefox` (or this folder's `manifest.json`) | `dist/guteayri-firefox-1.0.3.zip` |
-| Chrome (Manifest V3) | Chrome, Edge, Brave and other Chromium browsers | `dist/chrome` | `dist/guteayri-chrome-1.0.3.zip` |
+| Firefox (Manifest V2) | Firefox, Zen | `dist/firefox` (or this folder's `manifest.json`) | `dist/guteayri-firefox-1.0.4.zip` |
+| Chrome (Manifest V3) | Chrome, Edge, Brave and other Chromium browsers | `dist/chrome` | `dist/guteayri-chrome-1.0.4.zip` |
 | Safari (Manifest V3) | Safari on macOS | `dist/GuteAyri.app` (built when Xcode is installed) | — |
 
 ## Install
@@ -38,6 +38,7 @@ Safari doesn't let extensions change their shortcuts; the defaults apply, and th
 | Action | Default shortcut |
 |---|---|
 | Fill this page | Alt+Shift+G |
+| Stop the running request | Alt+Shift+X in Firefox and Zen; not set in Chrome, which allows defaults for only four shortcuts |
 | Answer the selected text | Alt+Shift+A |
 | Show or hide the answer panel | Alt+Shift+H |
 | Open the popup | Alt+Shift+Y |
@@ -60,7 +61,7 @@ Change any of them under **Settings → Shortcuts**: click a shortcut and press 
 
 The answer panel's footer shows what each run cost: an estimate in dollars (Claude models priced from Anthropic's price list; OpenRouter reports its own cost; other providers show tokens only), then the tokens: input (and how much of it came from the provider's cache) and output. GuteAyri marks its instructions and your topic notes as cacheable, so later pages in a quiz pay a fraction for them.
 
-GuteAyri never presses submit, next, Check or navigation buttons, or flags questions, and leaves passwords, search boxes and payment fields alone. **Undo** in the panel reverts every fill.
+GuteAyri never presses submit, next, Check or navigation buttons, or flags questions, and leaves passwords, search boxes and payment fields alone. **Undo** in the panel reverts every fill. **Stop** (the panel's button while it's working, or the stop shortcut) ends a run at once: the request to the provider is cancelled, no other key or fallback is tried, and if answers are already being filled, the rest are left alone. Filled fields aren't outlined on the page unless you turn on "Outline filled fields on the page" in Settings.
 
 ## Testing on Moodle
 

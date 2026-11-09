@@ -230,7 +230,13 @@
     return el;
   }
 
+  /* Outlines a filled field on the page, only with "Outline filled fields" turned on (GR.outline, set per run). */
   GR.mark = (field, state) => {
+    if (!GR.outline) {
+      if (field.markEl) field.markEl.removeAttribute("data-guteayri-mark");
+      field.markEl = null;
+      return;
+    }
     const t = markTarget(field.el);
     GR.ensurePageStyle(t.getRootNode());
     t.setAttribute("data-guteayri-mark", state);

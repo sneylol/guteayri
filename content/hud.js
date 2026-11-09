@@ -252,7 +252,8 @@
         h("div", { class: "working" },
           h("div", { class: "scan", "aria-hidden": "true" }, ["A", "B", "C", "D", "E"].map((l, i) => h("span", { class: "b", style: `--i:${i}` }, h("span", {}, l)))),
           h("div", { class: "wtext" }, state.status || "Reading the page"),
-          state.sub ? h("div", { class: "wsub" }, state.sub) : null
+          state.sub ? h("div", { class: "wsub" }, state.sub) : null,
+          h("button", { class: "btn ghost", onclick: () => GR.send({ type: "cancelRun" }) }, "Stop")
         )
       );
     } else if (state.phase === "error") {
@@ -491,6 +492,20 @@
       f.review = !!review;
       render();
     },
+    /* The person stopped the run before any answer came back. */
+    stopped() {
+      state.phase = "error";
+      state.error = { title: "Stopped", message: "You stopped this run, so nothing was filled. Run again when you're ready." };
+      state.tone = "";
+      state.status = "Stopped";
+      if (quiet && !visible()) {
+        pill("Stopped", 1800);
+        return;
+      }
+      show();
+      render();
+    },
+    working: () => state.phase === "working",
     error(frameId, message, opts) {
       const settings = /settings|api key|base url|choose a model/i.test(message || "");
       state.phase = "error";
